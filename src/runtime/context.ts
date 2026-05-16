@@ -76,6 +76,7 @@ export function createNuxtI18nContext(nuxt: NuxtApp, vueI18n: I18n, defaultLocal
   const serverLocaleConfigs = useLocaleConfigs()
   const localeCookie = useI18nCookie(detectConfig)
   const loadMap = new Set<string>()
+  const cookie = 
 
   /** Get computed config for locale */
   const getLocaleConfig = (locale: string) => serverLocaleConfigs.value![locale]
@@ -96,19 +97,34 @@ export function createNuxtI18nContext(nuxt: NuxtApp, vueI18n: I18n, defaultLocal
     }
   }
 
-  const loadMessagesFromServer = async (locale: string) => {
-    if (locale in localeLoaders === false) { return }
-    const headers: HeadersInit = getLocaleConfig(locale)?.cacheable ? {} : { 'Cache-Control': 'no-cache' }
-    // Reuse Nuxt's `app.cdnURL` so the client hits the static origin instead of the
-    // dynamic Nitro server when a CDN is configured. SSR keeps using a relative URL
-    // to avoid bouncing through the CDN for the same content the local handler can serve.
-    const prefix = import.meta.client ? (nuxt.$config.app.cdnURL || '') : ''
-    const url = joinURL(prefix, __I18N_SERVER_ROUTE__, __I18N_LOCALE_HASHES__[locale]!, locale, 'messages.json')
-    const messages = await $fetch<LocaleMessages<DefineLocaleMessage>>(url, { headers })
-    for (const k of Object.keys(messages)) {
-      i18n.mergeLocaleMessage(k, messages[k])
-    }
+const loadMessagesFromServer = async (locale: string) => {
+  if (locale in localeLoaders === false) {
+    return
   }
+
+  const headers: HeadersInit = getLocaleConfig(locale)?.cacheable
+    ? {}
+    : { 'Cache-Control': 'no-cache' }
+
+  const cookies = import.meta.server
+    ? nuxt.ssrContext?.event?.node.req.headers.cookie
+    : document.cookie
+
+  if (cookies) {
+    headers['x-debug-mode'] = cookies.includes('debug_mode=1')
+  }
+
+  const prefix = import.meta.client ? (nuxt.$config.app.cdnURL || '') : ''
+  const url = joinURL(prefix, __I18N_SERVER_ROUTE__, __I18N_LOCALE_HASHES__[locale]!, locale, 'messages.json')
+
+  const messages = await $fetch<LocaleMessages<DefineLocaleMessage>>(url, {
+    headers
+  })
+
+  for (const k of Object.keys(messages)) {
+    i18n.mergeLocaleMessage(k, messages[k])
+  }
+}
 
   const ctx: NuxtI18nContext = {
     vueI18n,
