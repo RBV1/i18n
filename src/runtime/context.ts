@@ -244,6 +244,10 @@ export function createNuxtI18nContext(nuxt: NuxtApp, vueI18n: I18n, defaultLocal
     }
 
     const headers: HeadersInit = getLocaleConfig(locale)?.cacheable ? {} : { 'Cache-Control': 'no-cache' }
+    const cookies = import.meta.client ? document.cookie : undefined
+    if (cookies != null) {
+      ;(headers as Record<string, string>)['x-vocab-debug-mode'] = cookies.includes('vocab_debug_mode=1') ? '1' : '0'
+    }
     const url = joinURL(cdnPrefix(locale), __I18N_SERVER_ROUTE__, __I18N_LOCALE_HASHES__[locale]!, locale, 'messages.json')
     const messages = await $fetch<LocaleMessages<DefineLocaleMessage>>(url, { headers })
     for (const k of deliverable(messages)) {

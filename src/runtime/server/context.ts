@@ -1,7 +1,7 @@
 import type { LocaleMessages } from '@intlify/core'
 import type { DefineLocaleMessage } from '@intlify/h3'
 import { deepCopy } from '@intlify/shared'
-import { type H3Event, type H3EventContext, getRequestURL } from 'h3'
+import { type H3Event, type H3EventContext, getHeader, getRequestURL } from 'h3'
 import { type ResolvedI18nOptions, setupVueI18nOptions } from '../shared/vue-i18n'
 import { useRuntimeI18n } from '../shared/utils'
 import { createLocaleConfigs, resolveDefaultLocale } from '../shared/locales'
@@ -39,11 +39,13 @@ export async function initializeI18nContext(event: H3Event) {
  * Fetches the messages for the specified locale.
  * @internal
  */
-export const fetchMessages = async (locale: string) => {
+export const fetchMessages = async (locale: string, event?: H3Event) => {
   const headers = new Headers({ 'x-nuxt-i18n': 'internal' })
   if (import.meta.dev) {
     headers.set('Cache-Control', 'no-cache')
   }
+  const cookies = event ? (getHeader(event, 'cookie') ?? '') : ''
+  headers.set('x-vocab-debug-mode', cookies.includes('vocab_debug_mode=1') ? '1' : '0')
   return await $fetch<LocaleMessages<DefineLocaleMessage>>(`${__I18N_SERVER_ROUTE__}/${__I18N_LOCALE_HASHES__[locale]}/${locale}/messages.json`, {
     headers,
   })
