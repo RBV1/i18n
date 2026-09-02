@@ -1,0 +1,52 @@
+name: Update Release Branch
+
+permissions:
+  contents: write
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - "docs/**"
+      - ".github/workflows/**"
+
+jobs:
+  update-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
+
+      - name: Setup node
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Push source + dist to release branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          cp -r dist /tmp/dist-build
+          git checkout -B release
+          cp -r /tmp/dist-build dist
+          git add -f dist/
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          if git diff --cached --quiet; then
+            echo "No dist changes, skipping commit"
+          else
+            git commit -m "release: update dist from ${SHORT_SHA}"
+            git push origin release --force
+          fi
